@@ -509,8 +509,12 @@ def _text_from_delta(
     limit_ref_classes: Iterable[so.ObjectMeta] = tuple(),
 ) -> str:
 
+    # If we're not limiting the ref_classes we're in verbose mode
+    verbose_mode = not limit_ref_classes
+
     context = sd.CommandContext(
         descriptive_mode=descriptive_mode,
+        verbose_mode=verbose_mode,
         declarative=sdlmode,
     )
     text = []

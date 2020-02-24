@@ -633,11 +633,12 @@ class CommandContext:
         *,
         schema: Optional[s_schema.Schema] = None,
         modaliases: Optional[Mapping[Optional[str], str]] = None,
-        declarative: bool = False,
+        declarative: bool = False,  # SDL
+        descriptive_mode: bool = False,  # TEXT
+        verbose_mode: bool = False,  # VERBOSE
         stdmode: bool = False,
         testmode: bool = False,
         disable_dep_verification: bool = False,
-        descriptive_mode: bool = False,
         schema_object_ids: Optional[
             Mapping[Tuple[str, Optional[str]], uuid.UUID]
         ] = None
@@ -646,11 +647,12 @@ class CommandContext:
         self._cache: Dict[Hashable, Any] = {}
         self._values: Dict[Hashable, Any] = {}
         self.declarative = declarative
+        self.descriptive_mode = descriptive_mode
+        self.verbose_mode = verbose_mode
         self.schema = schema
         self._modaliases = modaliases if modaliases is not None else {}
         self.stdmode = stdmode
         self.testmode = testmode
-        self.descriptive_mode = descriptive_mode
         self.disable_dep_verification = disable_dep_verification
         self.renames: Dict[str, str] = {}
         self.renamed_objs: Set[so.Object] = set()
@@ -2250,6 +2252,7 @@ class AlterObjectProperty(Command):
         parent_node_attr: Optional[str],
     ) -> Optional[qlast.DDLOperation]:
         from edb import edgeql
+        from . import indexes as s_indexes
 
         astcls: Type[qlast.BaseSetField]
 
@@ -2266,29 +2269,38 @@ class AlterObjectProperty(Command):
         parent_cls = parent_op.get_schema_metaclass()
         has_shadow = parent_cls.has_field(f'orig_{field.name}')
 
-        if context.descriptive_mode:
-            # When generating AST for DESCRIBE AS TEXT, we want
-            # to use the original user-specified and unmangled
-            # expression to render the object definition.
-            expr_ql = edgeql.parse_fragment(self.new_value.origtext)
-        else:
+        expr_ql = None
+        origtext = self.new_value.origtext
+
+        # For SDL always output the normalized expression.
+        # For TEXT always output the original expression.
+        # For TEXT VERBOSE always output the normalized expression.
+        # For indexes and constraints _always_ output the original,
+        # regardless of the mode since they are identified by the
+        # original text.
+        if (context.descriptive_mode and not context.verbose_mode
+                or parent_cls is s_indexes.Index):
+            expr_ql = edgeql.parse_fragment(origtext)
+
+        if expr_ql is None:
             # In all other DESCRIBE modes we want the original expression
             # to be there as a 'SET orig_<expr> := ...' command.
             # The mangled expression should be the main expression that
             # the object is defined with.
             expr_ql = self.new_value.qlast
             orig_fname = f'orig_{field.name}'
+
             if (has_shadow
                     and not qlast.get_ddl_field_value(
                         parent_node, orig_fname)):
-                assert self.new_value.origtext is not None
-                parent_node.commands.append(
-                    qlast.SetField(
-                        name=orig_fname,
-                        value=qlast.StringConstant.from_python(
-                            self.new_value.origtext),
+                assert origtext is not None
+                if origtext.strip() != self.new_value.text.strip():
+                    parent_node.commands.append(
+                        qlast.SetField(
+                            name=orig_fname,
+                            value=qlast.StringConstant.from_python(origtext),
+                        )
                     )
-                )
 
         if parent_node is not None and parent_node_attr is not None:
             setattr(parent_node, parent_node_attr, expr_ql)
