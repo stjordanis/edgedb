@@ -685,6 +685,27 @@ class TestServerProto(tb.QueryTestCase):
             await self.con.fetchone(
                 'select schema::Object {name} filter .id=$id', id='asd')
 
+    async def test_server_proto_args_08(self):
+        with self.assertRaisesRegex(
+            edgedb.QueryError,
+            r'invalid argument count, expected: 1, got: 0'
+        ):
+            await self.con.fetchone('select <int64>$0')
+
+    async def test_server_proto_args_09(self):
+        with self.assertRaisesRegex(
+            edgedb.QueryError,
+            r'invalid argument count, expected: 1, got: 0'
+        ):
+            await self.con.fetchone('select <int64>$0 + 50')
+
+    async def test_server_proto_args_10(self):
+        with self.assertRaisesRegex(
+            edgedb.QueryError,
+            r'invalid argument count, expected: 2, got: 0'
+        ):
+            await self.con.fetchone('select <int64>$0 + <int64>$1')
+
     async def test_server_proto_wait_cancel_01(self):
         # Test that client protocol handles waits interrupted
         # by closing.
