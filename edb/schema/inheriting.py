@@ -20,6 +20,7 @@
 from __future__ import annotations
 from typing import *
 
+from edb import errors
 from edb.common import struct
 from edb.edgeql import ast as qlast
 from edb.schema import schema as s_schema
@@ -378,12 +379,31 @@ class InheritingObjectCommand(sd.ObjectCommand[so.InheritingObjectT]):
 
         base_refs: List[so.InheritingObjectT] = []
         for b in getattr(astnode, 'bases', None) or []:
-            obj = utils.ast_to_object(
-                b,
-                modaliases=modaliases,
-                schema=schema,
-                metaclass=cls.get_schema_metaclass(),
-            )
+            try:
+                obj = utils.ast_to_object(
+                    b,
+                    modaliases=modaliases,
+                    schema=schema,
+                    metaclass=cls.get_schema_metaclass(),
+                )
+            except errors.InvalidReferenceError as initial_error:
+                from edb.schema import scalars as s_scalars
+                try:
+                    target_object = utils.ast_to_object(
+                        b,
+                        modaliases=modaliases,
+                        schema=schema,
+                        metaclass=s_scalars.ScalarType,
+                    )
+                except errors.InvalidReferenceError:
+                    pass
+                else:
+                    disp_name = target_object.get_schema_class_displayname()
+                    if disp_name == 'scalar type':
+                        initial_error.set_hint_and_details(
+                            hint='type is scalar',
+                            details='consider using CREATE SCALAR TYPE')
+                raise initial_error
             base_refs.append(cast(so.InheritingObjectT, obj))
 
         return cls._validate_base_refs(schema, base_refs, astnode, context)
