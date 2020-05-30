@@ -79,6 +79,7 @@ jobs:
         PKG_SUBDIST: "nightly"
         PKG_PLATFORM: "${{ matrix.platform }}"
         PKG_PLATFORM_VERSION: "${{ matrix.platform_version }}"
+        SRC_REF: "nightly"
       run: |
         edgedb-pkg/integration/macos/build.sh
 
