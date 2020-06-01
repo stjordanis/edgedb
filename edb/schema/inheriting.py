@@ -387,7 +387,6 @@ class InheritingObjectCommand(sd.ObjectCommand[so.InheritingObjectT]):
                     metaclass=cls.get_schema_metaclass(),
                 )
             except errors.InvalidReferenceError as initial_error:
-                from edb.schema import scalars as s_scalars
                 try:
                     target_object = utils.ast_to_object(
                         b,

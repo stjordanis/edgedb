@@ -3133,7 +3133,7 @@ class TestEdgeQLDDL(tb.DDLTestCase):
                 edgedb.InvalidReferenceError,
                 r"object type 'str' does not exist",
                 # Details is not exposed in edgedb-python yet
-                #_details='consider using CREATE SCALAR TYPE'
+                # _details='consider using CREATE SCALAR TYPE'
                 _hint='type is scalar'):
 
             await self.con.execute(r"""
