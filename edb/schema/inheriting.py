@@ -393,7 +393,6 @@ class InheritingObjectCommand(sd.ObjectCommand[so.InheritingObjectT]):
                         b,
                         modaliases=modaliases,
                         schema=schema,
-                        metaclass=s_scalars.ScalarType,
                     )
                 except errors.InvalidReferenceError:
                     pass
