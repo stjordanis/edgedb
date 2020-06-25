@@ -66,6 +66,11 @@ class CardinalityModifier(s_enum.StrEnum):
     Required = 'REQUIRED'
 
 
+class DescribeGlobal(s_enum.StrEnum):
+    Schema = 'SCHEMA'
+    SystemConfig = 'SYSTEM CONFIG'
+
+
 class Base(ast.AST):
     __abstract_node__ = True
     __ast_hidden__ = {'context'}
@@ -1017,7 +1022,7 @@ class ConfigReset(ConfigOp, FilterMixin):
 class DescribeStmt(Statement):
 
     language: qltypes.DescribeLanguage
-    object: ObjectRef
+    object: typing.Union[ObjectRef, DescribeGlobal]
     options: Options
 
 

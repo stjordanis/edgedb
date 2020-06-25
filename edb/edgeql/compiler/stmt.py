@@ -32,6 +32,7 @@ from edb.schema import ddl as s_ddl
 from edb.schema import functions as s_func
 from edb.schema import links as s_links
 from edb.schema import lproperties as s_lprops
+from edb.schema import modules as s_mod
 from edb.schema import name as s_name
 from edb.schema import objects as s_obj
 from edb.schema import objtypes as s_objtypes
@@ -481,7 +482,7 @@ def compile_DescribeStmt(
         stmt = irast.SelectStmt()
         init_stmt(stmt, ql, ctx=ictx, parent_ctx=ctx)
 
-        if not ql.object:
+        if ql.object == qlast.DescribeGlobal.Schema:
             if ql.language is qltypes.DescribeLanguage.DDL:
                 # DESCRIBE SCHEMA
                 text = s_ddl.ddl_text_from_schema(
@@ -490,7 +491,29 @@ def compile_DescribeStmt(
             else:
                 raise errors.QueryError(
                     f'cannot describe full schema as {ql.language}')
+
+            ct = typegen.type_to_typeref(
+                ctx.env.get_track_schema_type('std::str'),
+                env=ctx.env,
+            )
+
+            stmt.result = setgen.ensure_set(
+                irast.StringConstant(value=text, typeref=ct),
+                ctx=ictx,
+            )
+
+        elif ql.object == qlast.DescribeGlobal.SystemConfig:
+            if ql.language is qltypes.DescribeLanguage.DDL:
+                stmt.result = dispatch.compile(
+                    qlast.FunctionCall(
+                        func=('cfg', '_describe_system_config_as_ddl'),
+                    ),
+                    ctx=ictx)
+            else:
+                raise errors.QueryError(
+                    f'cannot describe config as {ql.language}')
         else:
+            assert isinstance(ql.object, qlast.ObjectRef), ql.object
             modules = []
             items: List[str] = []
             referenced_classes: List[s_obj.ObjectMeta] = []
@@ -579,15 +602,15 @@ def compile_DescribeStmt(
                 include_std_ddl=True,
             )
 
-        ct = typegen.type_to_typeref(
-            ctx.env.get_track_schema_type('std::str'),
-            env=ctx.env,
-        )
+            ct = typegen.type_to_typeref(
+                ctx.env.get_track_schema_type('std::str'),
+                env=ctx.env,
+            )
 
-        stmt.result = setgen.ensure_set(
-            irast.StringConstant(value=text, typeref=ct),
-            ctx=ictx,
-        )
+            stmt.result = setgen.ensure_set(
+                irast.StringConstant(value=text, typeref=ct),
+                ctx=ictx,
+            )
 
         result = fini_stmt(stmt, ql, ctx=ictx, parent_ctx=ctx)
 
